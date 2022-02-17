@@ -23,7 +23,7 @@ class Pose2D:
 
 class Robot:
 
-	def __init__(self, pose, source_pose, mic_pose) -> None:
+	def __init__(self, pose: Pose2D, source_pose: Pose2D, mic_pose: Pose2D) -> None:
 		self.pose = pose                    # global pose of robot
 		self._source_pose = source_pose     # rel pose of speaker 
 		self._mic_pose = mic_pose           # rel pose of mic
@@ -35,12 +35,26 @@ class Robot:
 
 	@property
 	def mic_pos(self):
+		"""Returns global pos [x,y] of mic."""
 		return (self.pose + self._mic_pose).pos
 
 def extract_TOAs(rir, fs, num=None, plot=False):
-	envelop = get_envelope(rir, False)
+	"""extract TOAs from an impulse response.
+
+	Args:
+		rir (arraylike): Room impulse response.
+		fs (int): sampling rate
+		num (int, optional): If specified, returns only the `num` highest peaks. Defaults to None.
+		plot (bool, optional): Plot if true. Defaults to False.
+
+	Returns:
+		px: Peak x positions.
+		py: Peak y positions or heights.
+	"""
+	envelop = get_envelope(rir, bottom_envelop=False)	# bottom envelop doesn't make much difference
 	px, py = findpeaks(envelop)
 
+	# sort peaks by py in descending order
 	px = np.flip( np.take(px, np.argsort(py)) )
 	py = np.flip(np.sort(py))
 	if num is not None:
@@ -54,9 +68,22 @@ def extract_TOAs(rir, fs, num=None, plot=False):
 		plt.plot(px, py, 'r+')
 		plt.show()
 
+	# px is in indices, convert to timestamps
+	px = px.astype(float) / fs
+
 	return px, py
 
 def get_envelope(signal, bottom_envelop=False):
+	"""Returns envelop of given signal.
+
+	Args:
+		signal (arraylike): Signal to find envelop of.
+		bottom_envelop (bool, optional): If True, will return average of top and bottom envelop.
+			Otherwise just top envelop. Defaults to False.
+
+	Returns:
+		arraylike: envelop signal, same length.
+	"""
 	x, y = findpeaks(signal)
 	# add anchor points
 	x = [0] + x + [len(signal)-1]
@@ -78,6 +105,15 @@ def get_envelope(signal, bottom_envelop=False):
 	return envelop
 
 def findpeaks(signal):
+	"""Returns x and y coordinates of peaks in signal.
+
+	Args:
+		signal (arraylike): Signal to find peaks in.
+
+	Returns:
+		xvals: Indices of peaks.
+		yvals: Y coords of peaks.
+	"""
 	xvals = []
 	yvals = []
 	for i in range(1, len(signal)-1):

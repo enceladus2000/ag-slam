@@ -31,7 +31,7 @@ def main():
 	# room.plot_rir()
 	# plt.show()
 
-	extract_TOAs(room.rir[0][0], fs, 8)
+	times, amps = extract_TOAs(room.rir[0][0], fs, 8, True)
 	
 if __name__ == '__main__':
 	main()
