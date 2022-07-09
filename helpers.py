@@ -1,25 +1,68 @@
+from __future__ import annotations
+
+from typing import List, Union
+
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
-import matplotlib.pyplot as plt
 
 class Pose2D:
-	def __init__(self, x, y, theta=0) -> None:
-		self.x = x 
-		self.y = y 
-		self.theta = theta
+	def __init__(self, transformation_matrix) -> None:
+		self.T = transformation_matrix
 
-	@property
-	def pos(self):
-		"""Returns [x, y]"""
-		return [self.x, self.y]
+	def __add__(self, other) -> Pose2D:
+		return Pose2D(self.T+other.T)
 
-	def __add__(self, other):
-		x = self.x + other.x*np.cos(self.theta) - other.y*np.sin(self.theta) 
-		y = self.y + other.x*np.sin(self.theta) - other.y*np.cos(self.theta)
-		return Pose2D(
-			x, y,
-			self.theta + other.theta    # TODO: mod?
-		)
+	def inverse(self) -> Pose2D:
+		return Pose2D(np.linalg.inv(self.T))
+
+	@staticmethod
+	def _gen_trans_matrix(x, y, theta):
+		return np.array([
+			[np.cos(theta),	-np.sin(theta),	x],
+			[np.sin(theta), np.cos(theta),	y],
+			[0,				0,				0],
+		])
+
+	@classmethod
+	def from_xytheta(cls, x, y, theta) -> Pose2D:
+		return cls(Pose2D._gen_trans_matrix(x, y, theta))
+		
+	@staticmethod
+	def x(self):
+		return self.T[0][2]
+
+	@staticmethod
+	def y(self):
+		return self.T[1][2]
+
+	@staticmethod
+	def theta(self):
+		return np.arccos(T[0][0])
+
+	def __str__(self):
+		return f'Pose2D({self.x}, {self.y}, {self.theta})'
+
+class Point2D:
+	def __init__(self, x, y):
+		self.x = x
+		self.y = y
+
+	def transform(self, poses: Union[Pose2D, List[Pose2D]]) -> Point2D:
+		if isinstance(poses, Pose2D):
+			pn = poses.T @ np.array([self.x, self.y, 1]).T
+			return Point2D(pn[0], pn[1])
+		elif isinstance(poses, list):
+			pcpy = Point2D(self.x, self.y)
+			for p in poses:
+				pcpy = pcpy.transform(p)
+			return pcpy
+		else:
+			raise TypeError('Only Pose2D can be applied as transformations.')
+
+	def __str__(self):
+		return f'Point2D({self.x}, {self.y})'
+	
 
 class Robot:
 

@@ -1,7 +1,9 @@
 from re import X
-import pyroomacoustics as pra
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pyroomacoustics as pra
+
 from helpers import Pose2D, Robot, extract_TOAs
 from plotting import plot_map
 
@@ -25,13 +27,13 @@ def main():
 	room.add_microphone(robot.mic_pos)
 	room.add_source(robot.source_pos)
 
-	# plot_map(room, robot)
+	plot_map(room, robot)
 
 	room.compute_rir()
 	# room.plot_rir()
 	# plt.show()
 
-	times, amps = extract_TOAs(room.rir[0][0], fs, 8, True)
+	# times, amps = extract_TOAs(room.rir[0][0], fs, 8, True)
 	
 if __name__ == '__main__':
 	main()
