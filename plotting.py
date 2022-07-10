@@ -4,6 +4,9 @@ import pyroomacoustics as pra
 
 def plot_map(room: pra.Room, robot: Robot):
     room.plot()
-    plt.plot(*robot.pose.pos, 'ko')
+    robot_size = robot.get_radius()
+    # ax.legend()
+    plt.plot(*robot.pose.to_tuple()[0:2], 'ko')
     plt.grid(True)
+    plt.legend()
     plt.show()

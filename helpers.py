@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,37 +16,43 @@ class Pose2D:
 	def inverse(self) -> Pose2D:
 		return Pose2D(np.linalg.inv(self.T))
 
+	def to_point(self) -> Point2D:
+		return Point2D(self.x, self.y)
+
+	def to_tuple(self) -> Tuple:
+		return (self.x, self.y, self.theta)
+
 	@staticmethod
 	def _gen_trans_matrix(x, y, theta):
 		return np.array([
 			[np.cos(theta),	-np.sin(theta),	x],
 			[np.sin(theta), np.cos(theta),	y],
-			[0,				0,				0],
+			[0,				0,				1],
 		])
 
 	@classmethod
 	def from_xytheta(cls, x, y, theta) -> Pose2D:
 		return cls(Pose2D._gen_trans_matrix(x, y, theta))
 		
-	@staticmethod
+	@property
 	def x(self):
 		return self.T[0][2]
 
-	@staticmethod
+	@property
 	def y(self):
 		return self.T[1][2]
 
-	@staticmethod
+	@property
 	def theta(self):
-		return np.arccos(T[0][0])
+		return np.arccos(self.T[0][0])
 
 	def __str__(self):
 		return f'Pose2D({self.x}, {self.y}, {self.theta})'
 
 class Point2D:
 	def __init__(self, x, y):
-		self.x = x
-		self.y = y
+		self.x = float(x)
+		self.y = float(y)
 
 	def transform(self, poses: Union[Pose2D, List[Pose2D]]) -> Point2D:
 		if isinstance(poses, Pose2D):
@@ -60,26 +66,38 @@ class Point2D:
 		else:
 			raise TypeError('Only Pose2D can be applied as transformations.')
 
+	def dist_from(self, point: Point2D):
+		return np.sqrt((self.x-point.x)**2 + (self.y-point.y)**2)
+
+	def to_tuple(self) -> Tuple:
+		return (self.x, self.y)
+
 	def __str__(self):
 		return f'Point2D({self.x}, {self.y})'
 	
-
 class Robot:
 
-	def __init__(self, pose: Pose2D, source_pose: Pose2D, mic_pose: Pose2D) -> None:
+	def __init__(self, pose: Pose2D, source_pos: Point2D, mic_pos: Point2D) -> None:
 		self.pose = pose                    # global pose of robot
-		self._source_pose = source_pose     # rel pose of speaker 
-		self._mic_pose = mic_pose           # rel pose of mic
+		self._source_pos = source_pos	    # rel pose of speaker 
+		self._mic_pos = mic_pos	        	# rel pose of mic
 
 	@property
-	def source_pos(self):
+	def src_global_pos(self):
 		"""Returns global pos [x,y] of source."""
-		return (self.pose + self._source_pose).pos
+		return self._source_pos.transform(self.pose)
 
 	@property
-	def mic_pos(self):
+	def mic_global_pos(self):
 		"""Returns global pos [x,y] of mic."""
-		return (self.pose + self._mic_pose).pos
+		return self._mic_pos.transform(self.pose)
+
+	def get_radius(self):
+		robot_pos = self.pose.to_point()
+		return max(
+				robot_pos.dist_from(self.mic_global_pos),
+				robot_pos.dist_from(self.src_global_pos)
+			)
 
 def extract_TOAs(rir, fs, num=None, plot=False):
 	"""extract TOAs from an impulse response.
