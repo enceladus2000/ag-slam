@@ -7,6 +7,11 @@ import pyroomacoustics as pra
 from helpers import Pose2D, Point2D, Robot, extract_TOAs
 from plotting import plot_map
 
+"""
+TODO:
+* 
+"""
+
 room_corners = np.transpose([
 	[0, 0], [5, 0],
 	[7, 6], [0, 6]
