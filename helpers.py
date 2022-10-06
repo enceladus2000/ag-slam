@@ -7,20 +7,31 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 class Pose2D:
+	"""Convention is to use theta measured from x axis counterclockwise. """
 	def __init__(self, transformation_matrix) -> None:
-		self.T = transformation_matrix
+		self.transmat = transformation_matrix
 
-	def __add__(self, other) -> Pose2D:
-		return Pose2D(self.T+other.T)
+	def __add__(self, other: Pose2D) -> Pose2D:
+		return Pose2D(self.transmat+other.transmat)
+
+	def __neg__(self) -> Pose2D:
+		return Pose2D(np.linalg.inv(self.transmat))
+
+	def __sub__(self, other: Pose2D) -> Pose2D:
+		return Pose2D(self.transmat @ np.linalg.inv(other.transmat))
 
 	def inverse(self) -> Pose2D:
-		return Pose2D(np.linalg.inv(self.T))
+		return Pose2D(np.linalg.inv(self.transmat))
 
 	def to_point(self) -> Point2D:
 		return Point2D(self.x, self.y)
 
 	def to_tuple(self) -> Tuple:
 		return (self.x, self.y, self.theta)
+
+	def bearing_to_point(self, point: Point2D):
+		"""Calculate bearing angle to some point (radians)."""
+		return (point - self.to_point()).angle() - self.theta
 
 	@staticmethod
 	def _gen_trans_matrix(x, y, theta):
@@ -33,30 +44,38 @@ class Pose2D:
 	@classmethod
 	def from_xytheta(cls, x, y, theta) -> Pose2D:
 		return cls(Pose2D._gen_trans_matrix(x, y, theta))
+
+	@classmethod
+	def from_arraylike(cls, arr) -> Pose2D:
+		return cls(Pose2D._gen_trans_matrix(arr[0], arr[1], arr[2]))
 		
 	@property
 	def x(self):
-		return self.T[0][2]
+		return self.transmat[0][2]
 
 	@property
 	def y(self):
-		return self.T[1][2]
+		return self.transmat[1][2]
 
 	@property
 	def theta(self):
-		return np.arccos(self.T[0][0])
+		t = np.arccos(self.transmat[0][0]) 
+		if np.sign(self.transmat[1][0]) < 0:
+			t = -t
+		return t
 
-	def __str__(self):
+	def __repr__(self):
 		return f'Pose2D({self.x}, {self.y}, {self.theta})'
 
 class Point2D:
 	def __init__(self, x, y):
-		self.x = float(x)
-		self.y = float(y)
+		self.x = np.float64(x)
+		self.y = np.float64(y)
 
 	def transform(self, poses: Union[Pose2D, List[Pose2D]]) -> Point2D:
 		if isinstance(poses, Pose2D):
-			pn = poses.T @ np.array([self.x, self.y, 1]).T
+			ph = np.array([self.x, self.y, 1])
+			pn = poses.transmat @ ph.reshape((3, 1))
 			return Point2D(pn[0], pn[1])
 		elif isinstance(poses, list):
 			pcpy = Point2D(self.x, self.y)
@@ -72,8 +91,30 @@ class Point2D:
 	def to_tuple(self) -> Tuple:
 		return (self.x, self.y)
 
-	def __str__(self):
+	def to_numpy(self) -> np.array:
+		return np.array(self.to_tuple())
+
+	def __repr__(self):
 		return f'Point2D({self.x}, {self.y})'
+
+	def __add__(self, other):
+		sum = self.to_numpy() + other.to_numpy()
+		return Point2D.from_arraylike(sum)
+
+	def __sub__(self, other):
+		diff = self.to_numpy() - other.to_numpy()
+		return Point2D.from_arraylike(diff)
+
+	def angle(self):
+		return np.arctan2(self.y, self.x)
+
+	@classmethod
+	def from_arraylike(cls, pnt):
+		return cls(pnt[0], pnt[1])
+
+	@classmethod
+	def from_polar(cls, r, theta):
+		return cls(r*np.cos(theta), r*np.sin(theta))
 	
 class Robot:
 
@@ -193,3 +234,9 @@ def findtroughs(signal):
 			yvals.append(signal[i])
 
 	return xvals, yvals
+
+# for testing
+if __name__ == '__main__':
+	p1 = Point2D(4, 3)
+	p2 = Point2D(5, 2)
+	print(p1 - p2)
